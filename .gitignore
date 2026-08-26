@@ -1,0 +1,21 @@
+# Dart / Flutter
+.dart_tool/
+.packages
+build/
+pubspec.lock
+
+# Android
+android/local.properties
+android/.gradle/
+android/app/.cxx/
+android/app/*.jks
+android/key.properties
+android/keystore/*.jks
+
+# CI 下载产物
+artifacts/
+
+# IDE
+.idea/
+*.iml
+.vscode/
