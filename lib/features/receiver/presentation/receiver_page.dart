@@ -302,11 +302,12 @@ class ReceiverPage extends ConsumerWidget {
               style: TextStyle(fontSize: 10, color: muted),
             ),
             const SizedBox(height: 4),
-             SizedBox(
-               height: 32,
-               child: Row(
-                 mainAxisAlignment: MainAxisAlignment.center,
-                 children: [
+            SizedBox(
+              width: double.infinity,
+              height: 32,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
                 IconButton(
                   padding: EdgeInsets.zero,
                   constraints:
@@ -357,9 +358,9 @@ class ReceiverPage extends ConsumerWidget {
                     icon: Icon(Icons.delete_outline, color: muted),
                     onPressed: () => _confirmClearSlot(context, controller, slot),
                   ),
-                 ],
-               ),
-             ),
+                ],
+              ),
+            ),
           ],
         ),
       ),

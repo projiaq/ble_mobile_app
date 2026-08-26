@@ -37,10 +37,10 @@ class _BindingPageState extends ConsumerState<BindingPage> {
   bool _loaded = false;
   bool _saving = false;
 
-  static const double _slotColWidth = 22;
-  static const double _positionColWidth = 92;
-  static const double _scanColWidth = 76;
-  static const double _rowGap = 4;
+  static const double _slotColWidth = 26;
+  static const double _positionColWidth = 82;
+  static const double _scanColWidth = 64;
+  static const double _rowGap = 5;
   static const double _rowHeight = 40;
 
   @override
@@ -350,7 +350,14 @@ class _BindingPageState extends ConsumerState<BindingPage> {
         const SizedBox(width: _rowGap),
         Expanded(child: Text('MAC 地址', style: TextStyle(fontSize: 11, color: muted))),
         const SizedBox(width: _rowGap),
-        const SizedBox(width: _scanColWidth),
+        SizedBox(
+          width: _scanColWidth,
+          child: Text(
+            '操作',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 11, color: muted),
+          ),
+        ),
       ],
     );
   }
@@ -453,7 +460,7 @@ class _BindingPageState extends ConsumerState<BindingPage> {
                   autocorrect: false,
                   enableSuggestions: false,
                   style: const TextStyle(
-                    fontSize: 11,
+                    fontSize: 10.5,
                     letterSpacing: 0,
                     fontFamily: 'monospace',
                   ),
