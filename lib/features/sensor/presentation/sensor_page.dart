@@ -35,12 +35,6 @@ class SensorPage extends ConsumerWidget {
         }
       });
     }
-    if (state.error != null && !state.connecting && !state.closing) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (context.mounted && context.canPop()) context.pop();
-      });
-    }
-
     final connecting = !state.ok && state.connecting;
 
     return Scaffold(
@@ -58,6 +52,7 @@ class SensorPage extends ConsumerWidget {
           : ListView(
               padding: const EdgeInsets.all(16),
               children: [
+                if (state.error != null) _connectionError(state.error!),
                 if (!state.ok) _connectCard(controller, isDark),
                 if (state.ok) ...[
             _liveDataCard(state, isDark),
@@ -84,7 +79,7 @@ class SensorPage extends ConsumerWidget {
         const Center(child: CircularProgressIndicator()),
         const SizedBox(height: 16),
         const Center(
-          child: Text('正在连接倾角传感器',
+          child: Text('正在连接传感器',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
         ),
         const SizedBox(height: 6),
@@ -118,6 +113,22 @@ class SensorPage extends ConsumerWidget {
     );
   }
 
+  Widget _connectionError(String error) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.dangerBg,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        '连接失败：$error',
+        style: const TextStyle(fontSize: 12, color: AppColors.danger),
+      ),
+    );
+  }
+
   Widget _connectionPill(SensorState state) {
     final String text;
     final Color background;
@@ -130,6 +141,10 @@ class SensorPage extends ConsumerWidget {
       text = '已断开';
       background = AppColors.dangerBg;
       foreground = AppColors.danger;
+    } else if (state.sampleState == 'waiting') {
+      text = '等待数据';
+      background = AppColors.warningBg;
+      foreground = AppColors.warning;
     } else if (state.sampleState == 'error') {
       text = '采样异常';
       background = AppColors.warningBg;
@@ -203,19 +218,50 @@ class SensorPage extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: double.infinity,
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: Text(
-                value,
-                maxLines: 1,
-                softWrap: false,
-                style: const TextStyle(fontSize: 34, fontWeight: FontWeight.w700),
+          if (payload == null)
+            SizedBox(
+              height: 54,
+              child: Row(
+                children: [
+                  const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(strokeWidth: 2.5),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      state.connectStatus.contains('订阅')
+                          ? state.connectStatus
+                          : '已连接，等待实时数据…',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: isDark
+                            ? AppColors.mineMuted
+                            : AppColors.textMuted,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            SizedBox(
+              width: double.infinity,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  value,
+                  maxLines: 1,
+                  softWrap: false,
+                  style: const TextStyle(
+                    fontSize: 34,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ),
             ),
-          ),
           if (payload != null)
             Row(
               children: [

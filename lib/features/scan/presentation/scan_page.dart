@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -56,11 +58,10 @@ class _ScanPageState extends ConsumerState<ScanPage> {
     ref.read(scanControllerProvider.notifier).setQuery(normalized);
   }
 
-  Future<void> _go(String path) async {
+  void _go(String path) {
     final router = GoRouter.of(context);
-    await ref.read(scanControllerProvider.notifier).stop();
-    if (!mounted) return;
     router.push(path);
+    unawaited(ref.read(scanControllerProvider.notifier).stop());
   }
 
   Future<void> _toggleMode() async {

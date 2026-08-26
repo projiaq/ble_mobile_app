@@ -69,6 +69,7 @@ class SensorState {
     String? error,
     bool clearError = false,
     SensorPayload? payload,
+    bool clearPayload = false,
     SensorInfo? info,
     int? rate,
     int? powerMode,
@@ -91,7 +92,7 @@ class SensorState {
       suspendReconnect: suspendReconnect ?? this.suspendReconnect,
       sampleState: sampleState ?? this.sampleState,
       error: clearError ? null : (error ?? this.error),
-      payload: payload ?? this.payload,
+      payload: clearPayload ? null : (payload ?? this.payload),
       info: info ?? this.info,
       rate: rate ?? this.rate,
       powerMode: powerMode ?? this.powerMode,
@@ -166,7 +167,13 @@ class SensorController extends StateNotifier<SensorState> {
     }
     _cancelReconnect();
     _lastNotifyAt = 0;
-    state = state.copyWith(connecting: true, clearError: true);
+    state = state.copyWith(
+      connecting: true,
+      sampleState: 'waiting',
+      lastDataAt: 0,
+      clearError: true,
+      clearPayload: true,
+    );
     _startConnectLog(silent: silent);
     try {
       await _ble.connect(
