@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../ble/scan_device.dart';
+import '../../../ble/scan_filter.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/qr_scanner.dart';
 import '../../../protocol/constants.dart';
 import '../../../protocol/sensor_protocol.dart';
 import '../application/receiver_controller.dart';
+import 'nearby_sensor_picker.dart';
 
 /// 维护模式绑定管理,对齐 phone_app 接收器页的八槽常驻编辑布局。
 class BindingPage extends ConsumerStatefulWidget {
@@ -36,7 +39,7 @@ class _BindingPageState extends ConsumerState<BindingPage> {
 
   static const double _slotColWidth = 22;
   static const double _positionColWidth = 92;
-  static const double _scanColWidth = 38;
+  static const double _scanColWidth = 76;
   static const double _rowGap = 4;
   static const double _rowHeight = 40;
 
@@ -77,6 +80,26 @@ class _BindingPageState extends ConsumerState<BindingPage> {
     final text = await scanQrCode(context);
     if (!mounted || text == null || text.isEmpty) return;
     _drafts[slot].mac.text = normalizeQrText(text);
+    setState(() {});
+  }
+
+  Future<void> _selectNearbySensor(int slot) async {
+    final ScanDevice? device = await showNearbySensorPicker(context);
+    if (!mounted || device == null) return;
+
+    final draft = _drafts[slot];
+    final inferredType = sensorTypeOf(classifyDevice(device));
+    draft.mac.text = normalizeQrText(device.id);
+    if (inferredType != null) {
+      draft.type = inferredType;
+      final validPositions = sensorPositionOptions()
+          .where((option) => option.type == inferredType)
+          .toList();
+      if (!validPositions.any((option) => option.sid == draft.sid) &&
+          validPositions.isNotEmpty) {
+        draft.sid = validPositions.first.sid;
+      }
+    }
     setState(() {});
   }
 
@@ -427,8 +450,10 @@ class _BindingPageState extends ConsumerState<BindingPage> {
                   controller: draft.mac,
                   maxLines: 1,
                   textCapitalization: TextCapitalization.characters,
+                  autocorrect: false,
+                  enableSuggestions: false,
                   style: const TextStyle(
-                    fontSize: 13,
+                    fontSize: 11,
                     letterSpacing: 0,
                     fontFamily: 'monospace',
                   ),
@@ -438,7 +463,7 @@ class _BindingPageState extends ConsumerState<BindingPage> {
                     filled: true,
                     fillColor: fillColor,
                     contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 11),
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 11),
                     border: border,
                     enabledBorder: border,
                     focusedBorder: border.copyWith(
@@ -452,15 +477,30 @@ class _BindingPageState extends ConsumerState<BindingPage> {
             SizedBox(
               width: _scanColWidth,
               height: _rowHeight,
-              child: IconButton(
-                tooltip: '扫码',
-                constraints: const BoxConstraints.tightFor(
-                  width: _scanColWidth,
-                  height: _rowHeight,
-                ),
-                padding: EdgeInsets.zero,
-                icon: const Icon(Icons.qr_code_scanner, size: 20),
-                onPressed: _saving ? null : () => _scanSlot(slot),
+              child: Row(
+                children: [
+                  IconButton(
+                    tooltip: '扫描二维码',
+                    constraints: const BoxConstraints.tightFor(
+                      width: _scanColWidth / 2,
+                      height: _rowHeight,
+                    ),
+                    padding: EdgeInsets.zero,
+                    icon: const Icon(Icons.qr_code_scanner, size: 20),
+                    onPressed: _saving ? null : () => _scanSlot(slot),
+                  ),
+                  IconButton(
+                    tooltip: '选择附近传感器',
+                    constraints: const BoxConstraints.tightFor(
+                      width: _scanColWidth / 2,
+                      height: _rowHeight,
+                    ),
+                    padding: EdgeInsets.zero,
+                    icon: const Icon(Icons.cell_tower, size: 20),
+                    onPressed:
+                        _saving ? null : () => _selectNearbySensor(slot),
+                  ),
+                ],
               ),
             ),
           ],
