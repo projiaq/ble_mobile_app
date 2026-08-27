@@ -8,8 +8,10 @@ import 'scan_device.dart';
 enum DeviceKind { receiver, pressure, tilt, sensor, other }
 
 /// 广播厂商数据约定(与传感器/接收器固件一致): companyId = 0xFFFF,
-/// payload = [硬件版本BCD, 软件版本BCD, 协议版本BCD, 设备类型]。
+/// payload = [0xA5, 0x5A, 硬件BCD, 软件BCD, 协议BCD, 设备类型]。
 const int advCompanyId = 0xFFFF;
+const int advMagic0 = 0xA5;
+const int advMagic1 = 0x5A;
 const int advTypePressure = 0; // 压力传感器
 const int advTypeReceiver = 1; // 接收器
 const int advTypeTilt = 2; // 倾角传感器
@@ -32,14 +34,26 @@ class AdvInfo {
 /// 解析广播厂商数据;未携带或不完整时返回 null。
 AdvInfo? parseAdvInfo(ScanDevice device) {
   final data = device.manufacturerData[advCompanyId];
-  if (data == null || data.length < 4) return null;
+  if (data == null || data.length < 6) return null;
+  if (data[0] != advMagic0 || data[1] != advMagic1) return null;
+  if (!_isBcd(data[2]) || !_isBcd(data[3]) || !_isBcd(data[4])) {
+    return null;
+  }
+  if (data[5] != advTypePressure &&
+      data[5] != advTypeReceiver &&
+      data[5] != advTypeTilt) {
+    return null;
+  }
   return AdvInfo(
-    hwVer: data[0],
-    swVer: data[1],
-    protoVer: data[2],
-    devType: data[3],
+    hwVer: data[2],
+    swVer: data[3],
+    protoVer: data[4],
+    devType: data[5],
   );
 }
+
+bool _isBcd(int value) =>
+    value >= 0 && value <= 0xFF && (value >> 4) <= 9 && (value & 0x0F) <= 9;
 
 /// BCD 版本号 → 如 "V1.0"。
 String formatVersion(int bcd) => 'V${bcd >> 4}.${bcd & 0xF}';

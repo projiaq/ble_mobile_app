@@ -39,13 +39,13 @@ void main() {
       expect(classifyDevice(device('k', name: 'Unknown')), DeviceKind.other);
     });
     test('广播厂商数据优先分类', () {
-      final manuf = {0xFFFF: [0x10, 0x10, 0x01, 0x00]};
+      final manuf = {0xFFFF: [0xA5, 0x5A, 0x10, 0x10, 0x01, 0x00]};
       expect(classifyDevice(device('a1', name: 'XYZ-P', manuf: manuf)),
           DeviceKind.pressure);
-      final manufTilt = {0xFFFF: [0x10, 0x10, 0x01, 0x02]};
+      final manufTilt = {0xFFFF: [0xA5, 0x5A, 0x10, 0x10, 0x01, 0x02]};
       expect(classifyDevice(device('a2', name: 'XYZ-T', manuf: manufTilt)),
           DeviceKind.tilt);
-      final manufRx = {0xFFFF: [0x10, 0x10, 0x01, 0x01]};
+      final manufRx = {0xFFFF: [0xA5, 0x5A, 0x10, 0x10, 0x01, 0x01]};
       expect(classifyDevice(device('a3', name: 'XYZ-R', manuf: manufRx)),
           DeviceKind.receiver);
       // 名称前缀仍可识别无广播数据的旧设备
@@ -53,7 +53,9 @@ void main() {
     });
     test('parseAdvInfo / formatVersion', () {
       final info = parseAdvInfo(
-          device('m', name: 'X', manuf: {0xFFFF: [0x12, 0x34, 0x01, 0x02]}));
+          device('m', name: 'X', manuf: {
+        0xFFFF: [0xA5, 0x5A, 0x12, 0x34, 0x01, 0x02]
+      }));
       expect(info, isNotNull);
       expect(info!.hwVer, 0x12);
       expect(info.swVer, 0x34);
@@ -65,6 +67,21 @@ void main() {
       expect(parseAdvInfo(device('o', name: 'X', manuf: {0x1234: [1, 2, 3, 4]})),
           isNull);
       expect(parseAdvInfo(device('p', name: 'X', manuf: {0xFFFF: [1, 2, 3]})),
+          isNull);
+      expect(
+          parseAdvInfo(device('q', name: 'X', manuf: {
+            0xFFFF: [0x00, 0x00, 0x12, 0x34, 0x01, 0x02]
+          })),
+          isNull);
+      expect(
+          parseAdvInfo(device('r', name: 'X', manuf: {
+            0xFFFF: [0xA5, 0x5A, 0x1A, 0x34, 0x01, 0x02]
+          })),
+          isNull);
+      expect(
+          parseAdvInfo(device('s', name: 'X', manuf: {
+            0xFFFF: [0xA5, 0x5A, 0x12, 0x34, 0x01, 0x7F]
+          })),
           isNull);
     });
     test('sensorTypeOf', () {

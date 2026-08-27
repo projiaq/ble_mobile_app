@@ -9,7 +9,7 @@ class ScanDevice {
 
   /// 厂商特定广播数据:<companyId, payload>。
   /// 与传感器/接收器固件约定一致:companyId = 0xFFFF,
-  /// payload = [硬件版本BCD, 软件版本BCD, 协议版本BCD, 设备类型]。
+  /// payload = [0xA5, 0x5A, 硬件BCD, 软件BCD, 协议BCD, 设备类型]。
   final Map<int, List<int>> manufacturerData;
 
   const ScanDevice({
