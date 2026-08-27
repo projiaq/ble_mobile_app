@@ -88,6 +88,7 @@ class BleManager {
           : result.device.platformName,
       rssi: result.rssi,
       serviceUuids: uuids.map((g) => g.str).toList(),
+      manufacturerData: result.advertisementData.manufacturerData,
     );
   }
 

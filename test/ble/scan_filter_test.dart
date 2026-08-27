@@ -4,9 +4,15 @@ import 'package:mobile_app/ble/scan_device.dart';
 import 'package:mobile_app/ble/scan_filter.dart';
 import 'package:mobile_app/protocol/constants.dart';
 
-ScanDevice device(String id, {String name = '', List<String>? uuids, int? rssi}) =>
-    ScanDevice(id: id, name: name, serviceUuids: uuids ?? const [], rssi: rssi);
-
+ScanDevice device(String id,
+        {String name = '', List<String>? uuids, int? rssi, Map<int, List<int>>? manuf}) =>
+    ScanDevice(
+        id: id,
+        name: name,
+        serviceUuids: uuids ?? const [],
+        rssi: rssi,
+        manufacturerData: manuf ?? const {},
+    );
 void main() {
   group('classifyDevice', () {
     test('接收器:名称前缀 / MCMPDT / 服务 UUID', () {
@@ -31,6 +37,35 @@ void main() {
     });
     test('未知设备', () {
       expect(classifyDevice(device('k', name: 'Unknown')), DeviceKind.other);
+    });
+    test('广播厂商数据优先分类', () {
+      final manuf = {0xFFFF: [0x10, 0x10, 0x01, 0x00]};
+      expect(classifyDevice(device('a1', name: 'XYZ-P', manuf: manuf)),
+          DeviceKind.pressure);
+      final manufTilt = {0xFFFF: [0x10, 0x10, 0x01, 0x02]};
+      expect(classifyDevice(device('a2', name: 'XYZ-T', manuf: manufTilt)),
+          DeviceKind.tilt);
+      final manufRx = {0xFFFF: [0x10, 0x10, 0x01, 0x01]};
+      expect(classifyDevice(device('a3', name: 'XYZ-R', manuf: manufRx)),
+          DeviceKind.receiver);
+      // 名称前缀仍可识别无广播数据的旧设备
+      expect(classifyDevice(device('a4', name: 'TILT-01')), DeviceKind.tilt);
+    });
+    test('parseAdvInfo / formatVersion', () {
+      final info = parseAdvInfo(
+          device('m', name: 'X', manuf: {0xFFFF: [0x12, 0x34, 0x01, 0x02]}));
+      expect(info, isNotNull);
+      expect(info!.hwVer, 0x12);
+      expect(info.swVer, 0x34);
+      expect(info.protoVer, 0x01);
+      expect(info.devType, 0x02);
+      expect(formatVersion(0x12), 'V1.2');
+      expect(formatVersion(0x10), 'V1.0');
+      expect(parseAdvInfo(device('n', name: 'X')), isNull);
+      expect(parseAdvInfo(device('o', name: 'X', manuf: {0x1234: [1, 2, 3, 4]})),
+          isNull);
+      expect(parseAdvInfo(device('p', name: 'X', manuf: {0xFFFF: [1, 2, 3]})),
+          isNull);
     });
     test('sensorTypeOf', () {
       expect(sensorTypeOf(DeviceKind.pressure), typePressure);

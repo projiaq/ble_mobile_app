@@ -436,9 +436,15 @@ class _ScanPageState extends ConsumerState<ScanPage> {
     final name = device.name.isEmpty
         ? (isReceiver ? 'AIOT-' : _defaultSnName(device))
         : device.name;
-    final subtitle = isReceiver
-        ? '${device.id} · 靠近优先'
-        : '${device.id} · 靠近后点入读取';
+    final info = parseAdvInfo(device);
+    final version = info == null
+        ? ''
+        : '${formatVersion(info.hwVer)}/${formatVersion(info.swVer)}';
+    final subtitle = [
+      if (version.isNotEmpty) version,
+      device.id,
+      if (isReceiver) '靠近优先' else '靠近后点入读取',
+    ].join(' · ');
     return InkWell(
       onTap: () => _go(
         isReceiver

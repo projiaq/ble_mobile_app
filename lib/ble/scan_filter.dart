@@ -7,14 +7,62 @@ import 'scan_device.dart';
 
 enum DeviceKind { receiver, pressure, tilt, sensor, other }
 
+/// 广播厂商数据约定(与传感器/接收器固件一致): companyId = 0xFFFF,
+/// payload = [硬件版本BCD, 软件版本BCD, 协议版本BCD, 设备类型]。
+const int advCompanyId = 0xFFFF;
+const int advTypePressure = 0; // 压力传感器
+const int advTypeReceiver = 1; // 接收器
+const int advTypeTilt = 2; // 倾角传感器
+
+/// 从广播厂商数据中解析出的设备附加信息。
+class AdvInfo {
+  final int hwVer; // BCD: 高 4 位主版本, 低 4 位次版本
+  final int swVer;
+  final int protoVer;
+  final int devType; // advTypePressure / advTypeReceiver / advTypeTilt
+
+  const AdvInfo({
+    required this.hwVer,
+    required this.swVer,
+    required this.protoVer,
+    required this.devType,
+  });
+}
+
+/// 解析广播厂商数据;未携带或不完整时返回 null。
+AdvInfo? parseAdvInfo(ScanDevice device) {
+  final data = device.manufacturerData[advCompanyId];
+  if (data == null || data.length < 4) return null;
+  return AdvInfo(
+    hwVer: data[0],
+    swVer: data[1],
+    protoVer: data[2],
+    devType: data[3],
+  );
+}
+
+/// BCD 版本号 → 如 "V1.0"。
+String formatVersion(int bcd) => 'V${bcd >> 4}.${bcd & 0xF}';
+
 String receiverDisplayName(String deviceId, int receiverId) {
   final hex = deviceId.replaceAll(RegExp(r'[^0-9A-Fa-f]'), '').toUpperCase();
   final suffix = hex.length >= 4 ? hex.substring(hex.length - 4) : hex.padLeft(4, '0');
   return 'AIOT_${suffix}_#${(receiverId % 1000).toString().padLeft(3, '0')}';
 }
 
-/// 按名称前缀与服务 UUID 分类。
+/// 按广播厂商数据中的设备类型分类,缺失时回退名称前缀与服务 UUID。
 DeviceKind classifyDevice(ScanDevice device) {
+  final info = parseAdvInfo(device);
+  if (info != null) {
+    switch (info.devType) {
+      case advTypeReceiver:
+        return DeviceKind.receiver;
+      case advTypeTilt:
+        return DeviceKind.tilt;
+      case advTypePressure:
+        return DeviceKind.pressure;
+    }
+  }
   final name = device.name.toUpperCase();
   final uuids = device.serviceUuids.map((u) => u.toUpperCase());
   if (name.startsWith('AIOT-') ||
