@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../ble/ble_manager.dart';
 import '../../../ble/ble_providers.dart';
@@ -23,8 +22,6 @@ class SensorState {
   final int? rate; // 0 慢 / 1 快
   final int? powerMode; // 0 普通 / 1 低功耗
   final int? offset;
-  final int zeroX;
-  final int zeroY;
   final int lastDataAt;
   final int reconnectAttempt;
   final bool otaRunning;
@@ -46,8 +43,6 @@ class SensorState {
     this.rate,
     this.powerMode,
     this.offset,
-    this.zeroX = 0,
-    this.zeroY = 0,
     this.lastDataAt = 0,
     this.reconnectAttempt = 0,
     this.otaRunning = false,
@@ -74,8 +69,6 @@ class SensorState {
     int? rate,
     int? powerMode,
     int? offset,
-    int? zeroX,
-    int? zeroY,
     int? lastDataAt,
     int? reconnectAttempt,
     bool? otaRunning,
@@ -97,8 +90,6 @@ class SensorState {
       rate: rate ?? this.rate,
       powerMode: powerMode ?? this.powerMode,
       offset: offset ?? this.offset,
-      zeroX: zeroX ?? this.zeroX,
-      zeroY: zeroY ?? this.zeroY,
       lastDataAt: lastDataAt ?? this.lastDataAt,
       reconnectAttempt: reconnectAttempt ?? this.reconnectAttempt,
       otaRunning: otaRunning ?? this.otaRunning,
@@ -116,7 +107,6 @@ class SensorController extends StateNotifier<SensorState> {
       : super(const SensorState()) {
     _watchdog =
         Timer.periodic(const Duration(seconds: 1), (_) => _checkDataAge());
-    unawaited(_loadZero());
   }
 
   final BleManager _ble;
@@ -128,8 +118,6 @@ class SensorController extends StateNotifier<SensorState> {
   Stopwatch? _connectWatch;
 
   static const int _slowNotifyIntervalMs = 700;
-
-  String get _zeroKey => 'tilt.zero.$deviceId';
 
   void _startConnectLog({required bool silent}) {
     _connectWatch = Stopwatch()..start();
@@ -147,15 +135,6 @@ class SensorController extends StateNotifier<SensorState> {
     state = state.copyWith(
       connectStatus: message,
       connectLogs: logs.length > 80 ? logs.sublist(logs.length - 80) : logs,
-    );
-  }
-
-  Future<void> _loadZero() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (state.closing) return;
-    state = state.copyWith(
-      zeroX: prefs.getInt('$_zeroKey.x') ?? 0,
-      zeroY: prefs.getInt('$_zeroKey.y') ?? 0,
     );
   }
 
@@ -362,14 +341,16 @@ class SensorController extends StateNotifier<SensorState> {
   Future<bool> markZero() async {
     final payload = state.payload;
     if (payload == null) return false;
-    final zeroX = payload.xAngle;
-    final zeroY = payload.yAngle;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('$_zeroKey.x', zeroX);
-    await prefs.setInt('$_zeroKey.y', zeroY);
-    state = state.copyWith(zeroX: zeroX, zeroY: zeroY);
-    return true;
+    final current = state.offset ?? 0;
+    final offset = calculateTiltZeroOffset(
+      current,
+      payload.xAngle,
+      payload.yAngle,
+    );
+    return writeOffset(offset);
   }
+
+  Future<bool> clearZero() => writeOffset(packTiltOffsets(0, 0));
 
   Future<bool> setRate(bool fast) async {
     try {

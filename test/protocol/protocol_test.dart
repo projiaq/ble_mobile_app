@@ -129,6 +129,33 @@ void main() {
     });
   });
 
+  group('倾角补偿编解码', () {
+    test('按 X/Y 有符号 int16 小端打包', () {
+      final packed = packTiltOffsets(-123, 456);
+      expect(tiltOffsetX(packed), -123);
+      expect(tiltOffsetY(packed), 456);
+      final bytes = ByteData(4)..setInt32(0, packed, Endian.little);
+      expect(bytes.buffer.asUint8List(), [0x85, 0xff, 0xc8, 0x01]);
+    });
+
+    test('标零计算会合并设备已有补偿', () {
+      final current = packTiltOffsets(-100, 50);
+      final next = calculateTiltZeroOffset(current, 20, -30);
+      expect(tiltOffsetX(next), -120);
+      expect(tiltOffsetY(next), 80);
+
+      final repeated = calculateTiltZeroOffset(next, 0, 0);
+      expect(repeated, next);
+    });
+
+    test('零补偿', () {
+      final packed = packTiltOffsets(0, 0);
+      expect(packed, 0);
+      expect(tiltOffsetX(packed), 0);
+      expect(tiltOffsetY(packed), 0);
+    });
+  });
+
   group('parseStream', () {
     test('解析 18 字节样本(slot + 17 字节载荷)', () {
       final bytes = Uint8List.fromList(List.filled(18, 0));

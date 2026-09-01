@@ -205,10 +205,7 @@ class SensorPage extends ConsumerWidget {
     final value = payload == null
         ? '--'
         : sensorType == typeTilt
-            ? formatAngles(
-                payload.xAngle - state.zeroX,
-                payload.yAngle - state.zeroY,
-              )
+            ? formatAngles(payload.xAngle, payload.yAngle)
             : formatValue(sensorType, payload.pressure);
     final voltage = notifyVoltageV(payload, state.info);
     return _card(
@@ -315,22 +312,30 @@ class SensorPage extends ConsumerWidget {
             ListTile(
               dense: true,
               contentPadding: EdgeInsets.zero,
-              title: const Text('零点标记'),
+              title: const Text('倾角标零'),
               subtitle: Text(
-                'X ${(state.zeroX / 10).toStringAsFixed(1)}°  Y ${(state.zeroY / 10).toStringAsFixed(1)}°',
+                state.offset == null
+                    ? '正在读取传感器补偿…'
+                    : '补偿 X ${(tiltOffsetX(state.offset!) / 10).toStringAsFixed(1)}°  '
+                        'Y ${(tiltOffsetY(state.offset!) / 10).toStringAsFixed(1)}°',
               ),
-              trailing: FilledButton(
-                onPressed: state.payload == null
-                    ? null
-                    : () async {
-                        final ok = await controller.markZero();
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text(ok ? '已标记零点' : '等待数据')),
-                          );
-                        }
-                      },
-                child: const Text('当前位置记为0'),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    tooltip: '清除标零',
+                    onPressed: state.offset == null || state.offset == 0
+                        ? null
+                        : () => _clearZero(context, controller),
+                    icon: const Icon(Icons.restart_alt),
+                  ),
+                  FilledButton(
+                    onPressed: state.payload == null || state.offset == null
+                        ? null
+                        : () => _markZero(context, controller),
+                    child: const Text('当前位置标零'),
+                  ),
+                ],
               ),
             ),
           ListTile(
@@ -355,7 +360,7 @@ class SensorPage extends ConsumerWidget {
               onChanged: (v) => controller.setPowerMode(v ? 1 : 0),
             ),
           ),
-          if (isMaintainer)
+          if (isMaintainer && sensorType == typePressure)
             ListTile(
               dense: true,
               contentPadding: EdgeInsets.zero,
@@ -368,6 +373,28 @@ class SensorPage extends ConsumerWidget {
             ),
         ],
       ),
+    );
+  }
+
+  Future<void> _markZero(
+    BuildContext context,
+    SensorController controller,
+  ) async {
+    final ok = await controller.markZero();
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(ok ? '当前位置已写入传感器零点' : '标零失败，请重试')),
+    );
+  }
+
+  Future<void> _clearZero(
+    BuildContext context,
+    SensorController controller,
+  ) async {
+    final ok = await controller.clearZero();
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(ok ? '已清除传感器零点' : '清除失败，请重试')),
     );
   }
 

@@ -95,6 +95,31 @@ List<int>? macToBytes(String text) {
   return bytes;
 }
 
+/// 倾角补偿沿用 4 字节 Offset 特征：X/Y 分别为低/高 16 位有符号小端数。
+int packTiltOffsets(int x, int y) {
+  final bytes = ByteData(4)
+    ..setInt16(0, x, Endian.little)
+    ..setInt16(2, y, Endian.little);
+  return bytes.getInt32(0, Endian.little);
+}
+
+int tiltOffsetX(int packed) => (ByteData(4)..setInt32(0, packed, Endian.little))
+    .getInt16(0, Endian.little);
+
+int tiltOffsetY(int packed) => (ByteData(4)..setInt32(0, packed, Endian.little))
+    .getInt16(2, Endian.little);
+
+/// 当前上报角度已经含旧补偿，因此新补偿 = 旧补偿 - 当前上报角度。
+int calculateTiltZeroOffset(int currentPacked, int currentX, int currentY) {
+  final x = (tiltOffsetX(currentPacked) - currentX)
+      .clamp(-32768, 32767)
+      .toInt();
+  final y = (tiltOffsetY(currentPacked) - currentY)
+      .clamp(-32768, 32767)
+      .toInt();
+  return packTiltOffsets(x, y);
+}
+
 /// 解析 17 字节传感器载荷(带偏移)。
 SensorPayload? parsePayload(Uint8List bytes, int off) {
   final available = bytes.length - off;
