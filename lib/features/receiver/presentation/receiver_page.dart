@@ -295,6 +295,20 @@ class ReceiverPage extends ConsumerWidget {
                 ),
               ),
             ),
+            if (slotState.sensorType == typeTilt)
+              Text(
+                formatDistance(
+                  slotState.range?.distanceMm,
+                  slotState.range?.peak,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: slotState.range == null ? muted : AppColors.primary,
+                ),
+              ),
             Text(
               slotState.mac,
               maxLines: 1,

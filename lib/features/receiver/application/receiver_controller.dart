@@ -18,6 +18,7 @@ class SlotState {
   final String mac;
   final bool bound;
   final SensorPayload? data;
+  final RangeSample? range; // 最近一次测距流帧, 无有效测距数据时为 null
   final int last; // 最近数据时间戳(ms)
   const SlotState({
     this.sensorType = 0,
@@ -25,6 +26,7 @@ class SlotState {
     this.mac = '',
     this.bound = false,
     this.data,
+    this.range,
     this.last = 0,
   });
 
@@ -34,6 +36,8 @@ class SlotState {
     String? mac,
     bool? bound,
     SensorPayload? data,
+    RangeSample? range,
+    bool clearRange = false,
     int? last,
   }) {
     return SlotState(
@@ -42,6 +46,7 @@ class SlotState {
       mac: mac ?? this.mac,
       bound: bound ?? this.bound,
       data: data ?? this.data,
+      range: clearRange ? null : (range ?? this.range),
       last: last ?? this.last,
     );
   }
@@ -221,16 +226,29 @@ class ReceiverController extends StateNotifier<ReceiverState> {
   }
 
   void _onStream(Uint8List value) {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    // 数据流特征上按长度区分两种帧: 18 字节倾角/压力载荷, 5 字节测距。
+    if (value.length == rangeStreamLen) {
+      final range = parseRangeStream(value);
+      if (range == null || range.slot >= slotCount) return;
+      final slots = List<SlotState>.of(state.slotList);
+      slots[range.slot] = slots[range.slot].copyWith(
+        range: range,
+        last: now,
+      );
+      state = state.copyWith(slots: slots, lastStreamAt: now);
+      return;
+    }
     final sample = parseStream(value);
     if (sample == null || sample.slot >= slotCount) return;
     final slots = List<SlotState>.of(state.slotList);
     slots[sample.slot] = slots[sample.slot].copyWith(
       data: sample.payload,
-      last: DateTime.now().millisecondsSinceEpoch,
+      last: now,
     );
     state = state.copyWith(
       slots: slots,
-      lastStreamAt: DateTime.now().millisecondsSinceEpoch,
+      lastStreamAt: now,
     );
   }
 
@@ -262,6 +280,8 @@ class ReceiverController extends StateNotifier<ReceiverState> {
       mac: mac,
       // 未绑定 = 类型与编号都为 0
       bound: bound && !(type == 0 && sid == 0),
+      // 非倾角传感器不会上报测距, 清掉可能残留的旧距离。
+      clearRange: type != typeTilt,
     );
     state = state.copyWith(slots: slots);
   }

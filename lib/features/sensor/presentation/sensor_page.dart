@@ -275,6 +275,15 @@ class SensorPage extends ConsumerWidget {
               ],
             ),
           ],
+          if (sensorType == typeTilt && state.range != null) ...[
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                _stat('距离', '${state.range!.distanceMm} mm', isDark),
+                _stat('Peak', '${state.range!.peak}', isDark),
+              ],
+            ),
+          ],
         ],
       ),
     );

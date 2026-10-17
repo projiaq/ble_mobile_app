@@ -18,6 +18,8 @@ class SensorState {
   final String sampleState; // waiting / ok / timeout / error
   final String? error;
   final SensorPayload? payload;
+  // 倾角传感器快速模式下的测距帧(4 字节), 无测距数据时为 null。
+  final ({int distanceMm, int peak})? range;
   final SensorInfo? info;
   final int? rate; // 0 慢 / 1 快
   final int? powerMode; // 0 普通 / 1 低功耗
@@ -39,6 +41,7 @@ class SensorState {
     this.sampleState = 'waiting',
     this.error,
     this.payload,
+    this.range,
     this.info,
     this.rate,
     this.powerMode,
@@ -65,6 +68,8 @@ class SensorState {
     bool clearError = false,
     SensorPayload? payload,
     bool clearPayload = false,
+    ({int distanceMm, int peak})? range,
+    bool clearRange = false,
     SensorInfo? info,
     int? rate,
     int? powerMode,
@@ -86,6 +91,7 @@ class SensorState {
       sampleState: sampleState ?? this.sampleState,
       error: clearError ? null : (error ?? this.error),
       payload: clearPayload ? null : (payload ?? this.payload),
+      range: clearRange ? null : (range ?? this.range),
       info: info ?? this.info,
       rate: rate ?? this.rate,
       powerMode: powerMode ?? this.powerMode,
@@ -152,6 +158,7 @@ class SensorController extends StateNotifier<SensorState> {
       lastDataAt: 0,
       clearError: true,
       clearPayload: true,
+      clearRange: true,
     );
     _startConnectLog(silent: silent);
     try {
@@ -267,6 +274,14 @@ class SensorController extends StateNotifier<SensorState> {
 
   // ---- 数据 ----
   void _onData(Uint8List value) {
+    // 测距帧(4 字节)与 17 字节倾角帧共用同一通知特征, 按长度区分。
+    if (value.length == sensorRangeLen) {
+      final range = parseSensorRange(value);
+      if (range != null) {
+        state = state.copyWith(range: range);
+      }
+      return;
+    }
     if (value.length < sensorPayloadLen) return;
     final payload = parsePayload(value, 0);
     if (payload == null) return;
@@ -360,7 +375,7 @@ class SensorController extends StateNotifier<SensorState> {
         snRateUuid,
         Uint8List.fromList([fast ? 1 : 0]),
       );
-      state = state.copyWith(rate: fast ? 1 : 0);
+      state = state.copyWith(rate: fast ? 1 : 0, clearRange: !fast);
       return true;
     } catch (e) {
       if (fast && state.ok) {
@@ -371,7 +386,7 @@ class SensorController extends StateNotifier<SensorState> {
             snRateUuid,
             Uint8List.fromList([0]),
           );
-          state = state.copyWith(rate: 0, error: '快速切换超时,已回退慢速');
+          state = state.copyWith(rate: 0, clearRange: true, error: '快速切换超时,已回退慢速');
           return false;
         } catch (_) {}
       }
