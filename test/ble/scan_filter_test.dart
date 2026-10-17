@@ -25,7 +25,8 @@ void main() {
       );
     });
     test('倾角 / 压力 / 传感器', () {
-      expect(classifyDevice(device('e', name: 'TILT-01')), DeviceKind.tilt);
+      expect(classifyDevice(device('e', name: 'TLRG-01')), DeviceKind.tilt);
+      expect(classifyDevice(device('e2', name: 'TILT-01')), DeviceKind.tilt);
       expect(classifyDevice(device('f', name: 'TILTNODE')), DeviceKind.tilt);
       expect(classifyDevice(device('g', name: 'PRES-02')), DeviceKind.pressure);
       expect(classifyDevice(device('h', name: 'PRESSNODE')), DeviceKind.pressure);

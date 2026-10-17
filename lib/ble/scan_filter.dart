@@ -86,7 +86,12 @@ DeviceKind classifyDevice(ScanDevice device) {
       uuids.any((u) => u.contains('6F8A0000'))) {
     return DeviceKind.receiver;
   }
-  if (name.startsWith('TILT-') || name == 'TILTNODE' || name.contains('TILT')) {
+  // TLRG = 支持测距的倾角传感器(V1.0.5+); TILT 为旧命名, 继续兼容。
+  if (name.startsWith('TLRG-') ||
+      name.contains('TLRG') ||
+      name.startsWith('TILT-') ||
+      name == 'TILTNODE' ||
+      name.contains('TILT')) {
     return DeviceKind.tilt;
   }
   if (name.startsWith('PRES-') ||

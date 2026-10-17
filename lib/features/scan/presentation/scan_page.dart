@@ -490,7 +490,7 @@ class _ScanPageState extends ConsumerState<ScanPage> {
 
   String _defaultSnName(ScanDevice device) {
     final type = sensorTypeOf(classifyDevice(device));
-    if (type == typeTilt) return 'TILT-SN';
+    if (type == typeTilt) return 'TLRG-SN';
     if (type == typePressure) return 'PRES-SN';
     return 'SensorNode';
   }
