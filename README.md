@@ -10,6 +10,8 @@
 - **客户/维护模式**、井下高对比深色主题
 
 > 协议契约(GATT UUID、命令 opcode、17 字节传感器帧、8 字节状态、Sensor Info)逐字节对齐 `phone_app/utils/protocol.js`,以 `test/protocol/` 单测锁定。
+>
+> **测距扩展(V1.0.5)**:倾角传感器快速模式下新增 4 字节测距帧(距离 mm LE16 + Peak LE16),与 17 字节帧共用传感器 `sensor_data` 特征;接收器在手机数据流特征上新增 5 字节帧(槽位 + 距离 + Peak),原 18 字节帧不变。字节布局见 `sensor/RANGE_PROTOCOL.md`。
 
 ## 本地开发
 
