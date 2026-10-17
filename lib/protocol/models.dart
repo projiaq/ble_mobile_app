@@ -140,6 +140,22 @@ class StreamSample {
   const StreamSample({required this.slot, required this.payload});
 }
 
+/// 接收器测距流帧(5 字节): slot + 距离 mm LE16 + Peak LE16。
+///
+/// 与 18 字节数据流帧共用接收器数据流特征, 按长度区分; 仅当槽位绑定倾角
+/// 传感器且该传感器处于快速模式并取到有效 XM123 测量时才会上报。
+class RangeSample {
+  final int slot;
+  final int distanceMm;
+  final int peak;
+
+  const RangeSample({
+    required this.slot,
+    required this.distanceMm,
+    required this.peak,
+  });
+}
+
 /// 传感器 Sensor Info(最长 24 字节)。
 class SensorInfo {
   final int workSeconds;

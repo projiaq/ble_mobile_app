@@ -45,3 +45,5 @@ const int opGetSensorInfo = 7;
 // 传感器帧/状态长度
 const int sensorPayloadLen = 17;
 const int streamSampleLen = 18; // 1 字节 slot + 17 字节载荷
+const int rangeStreamLen = 5; // 1 字节 slot + 距离 mm LE16 + Peak LE16
+const int sensorRangeLen = 4; // 距离 mm LE16 + Peak LE16 (传感器直连)

@@ -171,6 +171,40 @@ void main() {
     });
   });
 
+  group('parseRangeStream / parseSensorRange', () {
+    test('解析 5 字节接收器测距帧', () {
+      final bytes = Uint8List.fromList([2, 0xD2, 0x04, 0x4D, 0x00]);
+      final sample = parseRangeStream(bytes);
+      expect(sample, isNotNull);
+      expect(sample!.slot, 2);
+      expect(sample.distanceMm, 1234);
+      expect(sample.peak, 77);
+    });
+    test('距离 0xFFFF 视为无有效测距数据', () {
+      final bytes = Uint8List.fromList([0, 0xFF, 0xFF, 0x00, 0x00]);
+      expect(parseRangeStream(bytes), isNull);
+    });
+    test('不足 5 字节返回 null', () {
+      expect(parseRangeStream(Uint8List.fromList([0, 1, 2, 3])), isNull);
+    });
+    test('解析传感器直连 4 字节测距帧', () {
+      final range = parseSensorRange(
+        Uint8List.fromList([0xE8, 0x03, 0x2A, 0x00]),
+      );
+      expect(range, isNotNull);
+      expect(range!.distanceMm, 1000);
+      expect(range.peak, 42);
+    });
+    test('长度不为 4 时返回 null', () {
+      expect(parseSensorRange(Uint8List.fromList([0, 1, 2])), isNull);
+      expect(parseSensorRange(Uint8List.fromList(List.filled(17, 0))), isNull);
+    });
+    test('formatDistance 无数据显示 --', () {
+      expect(formatDistance(null), '--');
+      expect(formatDistance(1234, 77), '1234 mm  Peak 77');
+    });
+  });
+
   group('parseSensorInfo', () {
     test('24 字节完整解析', () {
       final info = parseSensorInfo(Uint8List.fromList([

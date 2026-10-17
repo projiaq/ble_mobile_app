@@ -160,6 +160,30 @@ StreamSample? parseStream(Uint8List bytes) {
   return StreamSample(slot: bytes[0], payload: payload);
 }
 
+/// 解析 5 字节接收器测距流帧: slot + 距离 mm LE16 + Peak LE16。
+/// 距离为 0xFFFF 时视为该槽暂无有效测距数据, 返回 null。
+RangeSample? parseRangeStream(Uint8List bytes) {
+  if (bytes.length < rangeStreamLen) return null;
+  final dv = ByteData.sublistView(bytes);
+  final distance = dv.getUint16(1, Endian.little);
+  if (distance == 0xFFFF) return null;
+  return RangeSample(
+    slot: bytes[0],
+    distanceMm: distance,
+    peak: dv.getUint16(3, Endian.little),
+  );
+}
+
+/// 解析传感器直连上报的 4 字节测距帧: 距离 mm LE16 + Peak LE16。
+({int distanceMm, int peak})? parseSensorRange(Uint8List bytes) {
+  if (bytes.length != sensorRangeLen) return null;
+  final dv = ByteData.sublistView(bytes);
+  return (
+    distanceMm: dv.getUint16(0, Endian.little),
+    peak: dv.getUint16(2, Endian.little),
+  );
+}
+
 /// 解析传感器 Sensor Info(>=10 字节;接收器附加标志在第 20 字节)。
 SensorInfo? parseSensorInfo(Uint8List bytes) {
   if (bytes.length < 10) return null;
@@ -234,4 +258,11 @@ String formatRaw(int type, SensorPayload? payload) {
   }
   final raw = payload.raw;
   return '$raw (0x${raw.toRadixString(16).padLeft(8, '0').toUpperCase()})';
+}
+
+/// 测距显示: 距离 mm + Peak 幅值; 无有效测距数据返回 `--`。
+String formatDistance(int? distanceMm, [int? peak]) {
+  if (distanceMm == null) return '--';
+  if (peak == null) return '$distanceMm mm';
+  return '$distanceMm mm  Peak $peak';
 }
