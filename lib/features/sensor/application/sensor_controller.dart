@@ -310,8 +310,9 @@ class SensorController extends StateNotifier<SensorState> {
   // ---- 配置 ----
   Future<void> readCfg() async {
     try {
+      final version = _rateWriteVersion;
       final rate = await _ble.read(deviceId, snCfgSvcUuid, snRateUuid);
-      if (rate.isNotEmpty) {
+      if (version == _rateWriteVersion && rate.isNotEmpty) {
         state = state.copyWith(rate: rate[0] != 0 ? 1 : 0);
       }
     } catch (_) {}
@@ -381,7 +382,7 @@ class SensorController extends StateNotifier<SensorState> {
         snRateUuid,
         Uint8List.fromList([fast ? 1 : 0]),
       );
-      state = state.copyWith(rate: fast ? 1 : 0, clearRange: !fast);
+      state = state.copyWith(rate: fast ? 1 : 0, clearRange: true, clearError: true);
       _lastRateReadAt = 0;
       return true;
     } catch (e) {
@@ -483,7 +484,7 @@ class SensorController extends StateNotifier<SensorState> {
       _lastRateReadAt = now;
       unawaited(_refreshRate());
     }
-    if (state.range != null && now - state.rangeAt > 2000) {
+    if (state.range != null && now - state.rangeAt > 7000) {
       state = state.copyWith(clearRange: true);
     }
     if (state.lastDataAt == 0) return;

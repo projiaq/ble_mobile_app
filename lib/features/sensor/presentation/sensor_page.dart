@@ -54,7 +54,7 @@ class SensorPage extends ConsumerWidget {
                 if (state.error != null) _connectionError(state.error!),
                 if (!state.ok) _connectCard(controller, isDark),
                 if (state.ok) ...[
-            _liveDataCard(state, isDark),
+            _liveDataCard(state, controller, isDark),
             _configCard(state, controller, context, isMaintainer, isDark),
             _infoCard(state, isDark),
             if (isMaintainer) _maintainerCard(controller, context, isDark),
@@ -199,7 +199,7 @@ class SensorPage extends ConsumerWidget {
   }
 
   // ---- 实时数据 ----
-  Widget _liveDataCard(SensorState state, bool isDark) {
+  Widget _liveDataCard(SensorState state, SensorController controller, bool isDark) {
     final payload = state.payload;
     final sensorType = state.sensorType ?? type;
     final value = payload == null
@@ -275,13 +275,30 @@ class SensorPage extends ConsumerWidget {
               ],
             ),
           ],
-          if (sensorType == typeTilt && state.range != null) ...[
-            const SizedBox(height: 10),
+          if (sensorType == typeTilt || state.range != null) ...[
+            const SizedBox(height: 12),
+            const Divider(),
+            const SizedBox(height: 8),
+            const Text('快速测距', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
             Row(
               children: [
-                _stat('距离', '${state.range!.distanceMm} mm', isDark),
-                _stat('Peak', '${state.range!.peak}', isDark),
+                _stat('距离', state.range == null ? '--' : '${state.range!.distanceMm} mm', isDark),
+                _stat('Peak', state.range == null ? '--' : '${state.range!.peak}', isDark),
               ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              state.rate == 1
+                  ? (state.range == null ? '等待测距数据，请检查 XM123 电源和 PA3/PA4 串口' : '正在测距，快速模式约 30 秒后自动结束')
+                  : '点击按钮启动一次快速测距（约 30 秒）',
+              style: TextStyle(fontSize: 12, color: isDark ? AppColors.mineMuted : AppColors.textMuted),
+            ),
+            const SizedBox(height: 8),
+            FilledButton.icon(
+              onPressed: state.rate == 1 ? null : () => controller.setRate(true),
+              icon: const Icon(Icons.speed),
+              label: Text(state.rate == 1 ? '快速测距中' : '启动快速测距'),
             ),
           ],
         ],

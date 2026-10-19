@@ -29,7 +29,7 @@ const String firmwareRevisionUuid = '00002A26-0000-1000-8000-00805F9B34FB';
 // ---- 协议 ----
 const int protocolVer = 1;
 const int slotCount = 8;
-const String appVersion = '1.0.2.002';
+const String appVersion = '1.0.3.003';
 const int typePressure = 1;
 const int typeTilt = 2;
 
