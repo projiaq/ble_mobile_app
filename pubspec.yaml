@@ -1,7 +1,7 @@
 name: mobile_app
 description: AIOT BLE 工具 - 井下 BLE 接收器/传感器管理端(Flutter 重构版)
 publish_to: 'none'
-version: 1.0.1+1
+version: 1.0.2+2
 
 environment:
   sdk: '>=3.6.0 <4.0.0'
