@@ -124,10 +124,11 @@ class SensorController extends StateNotifier<SensorState> {
   final String deviceId;
   Timer? _watchdog;
   Timer? _reconnectTimer;
-  int _lastNotifyAt = 0;
+  int _lastRateReadAt = 0;
+  int _rateWriteVersion = 0;
+  bool _rateReadInProgress = false;
   Stopwatch? _connectWatch;
 
-  static const int _slowNotifyIntervalMs = 700;
 
   void _startConnectLog({required bool silent}) {
     _connectWatch = Stopwatch()..start();
@@ -155,7 +156,7 @@ class SensorController extends StateNotifier<SensorState> {
       state = state.copyWith(suspendReconnect: false);
     }
     _cancelReconnect();
-    _lastNotifyAt = 0;
+    _lastRateReadAt = 0;
     state = state.copyWith(
       connecting: true,
       sampleState: 'waiting',
@@ -293,8 +294,6 @@ class SensorController extends StateNotifier<SensorState> {
     final payload = parsePayload(value, 0);
     if (payload == null) return;
     final now = DateTime.now().millisecondsSinceEpoch;
-    final notifyInterval = _lastNotifyAt == 0 ? 0 : now - _lastNotifyAt;
-    _lastNotifyAt = now;
     if (state.lastDataAt == 0) _connectLog('收到首包实时数据, length=${value.length}');
     final sampleState = (state.info != null &&
             state.info!.version >= 2 &&
@@ -305,7 +304,6 @@ class SensorController extends StateNotifier<SensorState> {
       payload: payload,
       sampleState: sampleState,
       lastDataAt: now,
-      rate: state.rate == 1 && notifyInterval >= _slowNotifyIntervalMs ? 0 : state.rate,
     );
   }
 
@@ -375,6 +373,7 @@ class SensorController extends StateNotifier<SensorState> {
   Future<bool> clearZero() => writeOffset(packTiltOffsets(0, 0));
 
   Future<bool> setRate(bool fast) async {
+    _rateWriteVersion++;
     try {
       await _ble.writeRequest(
         deviceId,
@@ -383,6 +382,7 @@ class SensorController extends StateNotifier<SensorState> {
         Uint8List.fromList([fast ? 1 : 0]),
       );
       state = state.copyWith(rate: fast ? 1 : 0, clearRange: !fast);
+      _lastRateReadAt = 0;
       return true;
     } catch (e) {
       if (fast && state.ok) {
@@ -455,10 +455,34 @@ class SensorController extends StateNotifier<SensorState> {
     }
   }
 
+  // The notification interval is not the device rate: missing tilt hardware
+  // makes the firmware probe the I2C device every ~5 seconds. Read the actual
+  // GATT rate instead, including the firmware's automatic 30-second fallback.
+  Future<void> _refreshRate() async {
+    if (_rateReadInProgress) return;
+    _rateReadInProgress = true;
+    final version = _rateWriteVersion;
+    try {
+      final value = await _ble.read(deviceId, snCfgSvcUuid, snRateUuid);
+      if (mounted && state.ok && version == _rateWriteVersion && value.isNotEmpty) {
+        final fast = value[0] != 0;
+        state = state.copyWith(rate: fast ? 1 : 0, clearRange: !fast);
+      }
+    } catch (_) {
+      // Leave the last known rate visible until the next successful read.
+    } finally {
+      _rateReadInProgress = false;
+    }
+  }
+
   // ---- 数据停滞看门狗 ----
   void _checkDataAge() {
     if (!state.ok) return;
     final now = DateTime.now().millisecondsSinceEpoch;
+    if (state.rate == 1 && now - _lastRateReadAt >= 3000) {
+      _lastRateReadAt = now;
+      unawaited(_refreshRate());
+    }
     if (state.range != null && now - state.rangeAt > 2000) {
       state = state.copyWith(clearRange: true);
     }
@@ -470,7 +494,7 @@ class SensorController extends StateNotifier<SensorState> {
         : 5000;
     final age = DateTime.now().millisecondsSinceEpoch - state.lastDataAt;
     if (age > timeout) state = state.copyWith(sampleState: 'timeout');
-    if (age > timeout + 3000) _handleStall();
+    if (age > timeout + 3000 && state.range == null) _handleStall();
   }
 
   Future<void> _handleStall() async {
