@@ -19,6 +19,7 @@ class SlotState {
   final bool bound;
   final SensorPayload? data;
   final RangeSample? range; // 最近一次测距流帧, 无有效测距数据时为 null
+  final int rangeAt; // 最近测距帧时间戳(ms), 独立于倾角数据时间
   final int last; // 最近数据时间戳(ms)
   const SlotState({
     this.sensorType = 0,
@@ -27,6 +28,7 @@ class SlotState {
     this.bound = false,
     this.data,
     this.range,
+    this.rangeAt = 0,
     this.last = 0,
   });
 
@@ -38,6 +40,7 @@ class SlotState {
     SensorPayload? data,
     RangeSample? range,
     bool clearRange = false,
+    int? rangeAt,
     int? last,
   }) {
     return SlotState(
@@ -47,6 +50,7 @@ class SlotState {
       bound: bound ?? this.bound,
       data: data ?? this.data,
       range: clearRange ? null : (range ?? this.range),
+      rangeAt: clearRange ? 0 : (rangeAt ?? this.rangeAt),
       last: last ?? this.last,
     );
   }
@@ -234,9 +238,9 @@ class ReceiverController extends StateNotifier<ReceiverState> {
       final slots = List<SlotState>.of(state.slotList);
       slots[range.slot] = slots[range.slot].copyWith(
         range: range,
-        last: now,
+        rangeAt: now,
       );
-      state = state.copyWith(slots: slots, lastStreamAt: now);
+      state = state.copyWith(slots: slots);
       return;
     }
     final sample = parseStream(value);
@@ -424,7 +428,18 @@ class ReceiverController extends StateNotifier<ReceiverState> {
 
   // ---- 数据停滞看门狗 ----
   void _checkDataAge() {
-    if (!state.ok || state.lastStreamAt == 0) return;
+    if (!state.ok) return;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final slots = List<SlotState>.of(state.slotList);
+    var cleared = false;
+    for (var i = 0; i < slots.length; i++) {
+      if (slots[i].range != null && now - slots[i].rangeAt > 2000) {
+        slots[i] = slots[i].copyWith(clearRange: true);
+        cleared = true;
+      }
+    }
+    if (cleared) state = state.copyWith(slots: slots);
+    if (state.lastStreamAt == 0) return;
     final online = state.status != null &&
         List.generate(slotCount, (i) => bit(state.status!.online, i))
             .any((v) => v);

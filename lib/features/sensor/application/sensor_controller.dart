@@ -20,6 +20,7 @@ class SensorState {
   final SensorPayload? payload;
   // 倾角传感器快速模式下的测距帧(4 字节), 无测距数据时为 null。
   final ({int distanceMm, int peak})? range;
+  final int rangeAt;
   final SensorInfo? info;
   final int? rate; // 0 慢 / 1 快
   final int? powerMode; // 0 普通 / 1 低功耗
@@ -42,6 +43,7 @@ class SensorState {
     this.error,
     this.payload,
     this.range,
+    this.rangeAt = 0,
     this.info,
     this.rate,
     this.powerMode,
@@ -70,6 +72,7 @@ class SensorState {
     bool clearPayload = false,
     ({int distanceMm, int peak})? range,
     bool clearRange = false,
+    int? rangeAt,
     SensorInfo? info,
     int? rate,
     int? powerMode,
@@ -92,6 +95,7 @@ class SensorState {
       error: clearError ? null : (error ?? this.error),
       payload: clearPayload ? null : (payload ?? this.payload),
       range: clearRange ? null : (range ?? this.range),
+      rangeAt: clearRange ? 0 : (rangeAt ?? this.rangeAt),
       info: info ?? this.info,
       rate: rate ?? this.rate,
       powerMode: powerMode ?? this.powerMode,
@@ -278,7 +282,10 @@ class SensorController extends StateNotifier<SensorState> {
     if (value.length == sensorRangeLen) {
       final range = parseSensorRange(value);
       if (range != null) {
-        state = state.copyWith(range: range);
+        state = state.copyWith(
+          range: range,
+          rangeAt: DateTime.now().millisecondsSinceEpoch,
+        );
       }
       return;
     }
@@ -450,7 +457,12 @@ class SensorController extends StateNotifier<SensorState> {
 
   // ---- 数据停滞看门狗 ----
   void _checkDataAge() {
-    if (!state.ok || state.lastDataAt == 0) return;
+    if (!state.ok) return;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    if (state.range != null && now - state.rangeAt > 2000) {
+      state = state.copyWith(clearRange: true);
+    }
+    if (state.lastDataAt == 0) return;
     final timeout = (state.powerMode != null &&
             state.powerMode != 0 &&
             state.rate != 1)
